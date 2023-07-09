@@ -1,6 +1,7 @@
 import pygame
 import os
 from constants import *
+import random
 
 
 class Hero:
@@ -46,6 +47,20 @@ class Hero:
     def reset_target(self):
         self.target_x = self.x
         self.target_y = self.y
+
+class Cat_Hero(Hero):
+    def __init__(self, x, y, image_path):
+        super().__init__(x, y, image_path)
+        self.streetcats = 0
+        self.persians = 0
+        self.sphinxes = 0
+
+class Dog_Hero(Hero):
+    def __init__(self, x, y, image_path):
+        super().__init__(x, y, image_path)
+        self.pugs = 0
+        self.malinoises = 0
+        self.doges = 0
 
 class House: 
     def __init__(self, x, y, image_path):
@@ -289,19 +304,72 @@ def date_update():
             date['month'] += 1
             if date['month'] >12: date['month'] = 0
 
+
+def draw_army(screen, player_hero):
+    font = pygame.font.Font(None, 24)
+    army_text = font.render('Army', True, (0, 0, 0))
+    screen.blit(army_text, (MAP_WIDTH * TILE_SIZE + 70, 180))
+    streetcat_text = font.render('Streetcats: ' + str(player_hero.streetcats), True, (0, 0, 0))
+    screen.blit(streetcat_text, (MAP_WIDTH * TILE_SIZE + 20, 220))
+    persian_text = font.render('Persians:    ' + str(player_hero.persians), True, (0, 0, 0))
+    screen.blit(persian_text, (MAP_WIDTH * TILE_SIZE + 20, 250))
+    sphynx_text = font.render('Sphynxes:  ' + str(player_hero.sphinxes), True, (0, 0, 0))
+    screen.blit(sphynx_text, (MAP_WIDTH * TILE_SIZE + 20, 280))
+
+
+
+
 def draw_date(screen):
     font = pygame.font.Font(None, 24)
     calendar_text = font.render('Calendar', True, (0, 0, 0))
-    screen.blit(calendar_text, (MAP_WIDTH * TILE_SIZE + 60, 760))
+    screen.blit(calendar_text, (MAP_WIDTH * TILE_SIZE + 60, 740))
     day_text = font.render('Day: ' + str(day_dictionary[date['day']]), True, (0, 0, 0))
-    screen.blit(day_text, (MAP_WIDTH * TILE_SIZE + 20, 800))
+    screen.blit(day_text, (MAP_WIDTH * TILE_SIZE + 20, 780))
     week_text = font.render('Week: ' + str(week_dictionary[date['week']]), True, (0, 0, 0))
-    screen.blit(week_text, (MAP_WIDTH * TILE_SIZE + 20, 830))
+    screen.blit(week_text, (MAP_WIDTH * TILE_SIZE + 20, 810))
     month_text = font.render('Month: ' + str(month_dictionary[date['month']]), True, (0, 0, 0))
-    screen.blit(month_text, (MAP_WIDTH * TILE_SIZE + 20, 860))
+    screen.blit(month_text, (MAP_WIDTH * TILE_SIZE + 20, 840))
 
-def end_of_turn(resources, moves, player_hero):
+def end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary):
     date_update()
     resources.update_resources()
     moves.moves = 3
     player_hero.reset_target()
+    enemy_turn(enemy_hero, moves, event_dictionary)
+
+def fight(player_hero):
+    pass
+
+def enemy_turn(enemy_hero, moves, event_dictionary):
+    def move_left():
+        enemy_hero.set_target(enemy_hero.x - 1, enemy_hero.y)
+        print('shaq moves left')
+
+
+    def move_right():
+        enemy_hero.set_target(enemy_hero.x + 1, enemy_hero.y)
+        print('shaq moves right')
+
+
+    def move_up():
+        enemy_hero.set_target(enemy_hero.x, enemy_hero.y - 1)
+        print('shaq moves up')
+
+
+    def move_down():
+        enemy_hero.set_target(enemy_hero.x, enemy_hero.y + 1)
+        print('shaq moves down')
+
+        
+    for i in range(3):
+        pygame.time.delay(300)
+        moveschoices = [move_left, move_right, move_up, move_down]
+        random.choice(moveschoices)()
+        enemy_hero.update(moves)
+        if event_map[enemy_hero.y][enemy_hero.x]>20:
+            if event_map[enemy_hero.y][enemy_hero.x] in event_dictionary:
+                #enemy_hero[event_map[enemy_hero.y][enemy_hero.x]]()
+                if event_map[enemy_hero.y][enemy_hero.x] >=20 and event_map[enemy_hero.y][enemy_hero.x] <=100 or event_map[enemy_hero.y][enemy_hero.x]>=200: 
+                    event_map[enemy_hero.y][enemy_hero.x] = 0
+    moves.moves = 3
+    

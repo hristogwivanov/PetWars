@@ -2,6 +2,7 @@ import pygame
 import os
 from constants import *
 from gamedata import *
+from gamedata import Cat_Hero
 from interface import *
 
 
@@ -56,10 +57,11 @@ def main():
     
 
 
-    player_hero = Hero(1, MAP_HEIGHT-2, 'hero.png')  
-    enemy_hero = Hero(MAP_WIDTH-2, 1, 'enemy.png')  
+    player_hero = Cat_Hero(1, MAP_HEIGHT-2, 'hero.png')  
+    enemy_hero = Dog_Hero(MAP_WIDTH-2, 1, 'enemy.png')  
+    player_hero.streetcats += 10
 
-    #####LEGACT CODE - The resources were presented as instances of class, now they are just on the event map#####
+    #####LEGACY CODE - The resources were presented as instances of class, now they are just on the event map#####
 
     # cat_house = House(0, MAP_HEIGHT -3, 'CatHouse.png') 
     # dog_house = House(MAP_WIDTH-2.7, 0, 'DogHouse.png') 
@@ -85,7 +87,7 @@ def main():
 
     font = pygame.font.Font(None, 50)
     win_text = font.render('You win!', True, (0, 0, 0))
-    win_text_position = win_text.get_rect(center=(win_dialog_frame.width//2, win_dialog_frame.height//2 - 40))  # reduce Y value to move text up
+    win_text_position = win_text.get_rect(center=(win_dialog_frame.width//2, win_dialog_frame.height//2 - 40))  
     screen.blit(win_text, (win_dialog_frame.x + win_text_position.x, win_dialog_frame.y + win_text_position.y))
     ok_button = Button(MAP_WIDTH * TILE_SIZE / 2 - 40, (MAP_HEIGHT * TILE_SIZE) / 2 + 10, 80, 40, LIGHT_BLUE, 'OK')
     show_win_dialog = False
@@ -121,7 +123,7 @@ def main():
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_e:
-                    end_of_turn(resources, moves, player_hero)
+                    end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary)
                 if event.key == pygame.K_LEFT:
                     player_hero.set_target(player_hero.x - 1, player_hero.y)
                 elif event.key == pygame.K_RIGHT:
@@ -135,7 +137,7 @@ def main():
                 if show_win_dialog and ok_button.isOver(pos):
                     running = False
                 if end_turn_button.isOver(pos):
-                    end_of_turn(resources, moves, player_hero)
+                    end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary)
                 else:
                     target_x, target_y = pos[0] // TILE_SIZE, pos[1] // TILE_SIZE
                     player_hero.set_target(target_x, target_y)
@@ -168,6 +170,7 @@ def main():
         
         Resources.draw_resources(screen, resources)
         draw_date(screen)
+        draw_army(screen, player_hero)
         moves.draw(screen, MAP_WIDTH * TILE_SIZE + 60, MAP_HEIGHT * TILE_SIZE - 100)
         end_turn_button.draw(screen)
 
@@ -198,24 +201,21 @@ def main():
             102: lambda: visitFishPound(resources),
             151: lambda: visitBoneYard(resources),
             152: lambda: visitPigFarm(resources),
-            # 211: neutral11,
-            # 212: neutral12,
-            # 213: neutral13,
-            # 214: neutral14,
-            # 221: neutral21,
-            # 222: neutral22,
-            # 223: neutral23,
-            # 224: neutral24,
-            # 230: neutral30
+            211: lambda: fight(player_hero),
+            212: lambda: fight(player_hero),
+            213: lambda: fight(player_hero),
+            214: lambda: fight(player_hero),
+            221: lambda: fight(player_hero),
+            222: lambda: fight(player_hero),
+            223: lambda: fight(player_hero),
+            224: lambda: fight(player_hero),
+            230: lambda: fight(player_hero),
         }
 
         if event_map[player_hero.y][player_hero.x]>20:
-            # print(event_map[player_hero.y][player_hero.x])
-            # print(player_hero.x)
-            # print(player_hero.y)
             if event_map[player_hero.y][player_hero.x] in event_dictionary:
                 event_dictionary[event_map[player_hero.y][player_hero.x]]()
-                if event_map[player_hero.y][player_hero.x] >=20 and event_map[player_hero.y][player_hero.x] <=100: 
+                if event_map[player_hero.y][player_hero.x] >=20 and event_map[player_hero.y][player_hero.x] <=100 or event_map[player_hero.y][player_hero.x]>=200: 
                     event_map[player_hero.y][player_hero.x] = 0
 
 
