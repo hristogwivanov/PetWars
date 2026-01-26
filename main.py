@@ -5,7 +5,7 @@ from constants import *
 from gamedata import *
 from gamedata import Cat_Hero
 from interface import *
-from pathfinding import dijkstra_visual, dijkstra_path
+from pathfinding import dijkstra_visual, dijkstra_path, astar_visual
 
 
 def main():
@@ -69,6 +69,10 @@ def main():
     normal_path_ready = False  # For normal mode two-click
     normal_pending_path = None  # Store path for normal mode
     normal_preview_path = None  # Full path for preview drawing
+    
+    # Algorithm selection: 0 = Dijkstra, 1 = A*
+    selected_algorithm = 0
+    algorithm_names = ['Dijkstra', 'A*']
 
     def draw_dijkstra_visualization(state):
         """Draw the current state of Dijkstra visualization."""
@@ -154,6 +158,7 @@ def main():
     moves = MovesCounter(3)
     end_turn_button = Button(MAP_WIDTH * TILE_SIZE + 60, MAP_HEIGHT * TILE_SIZE - 50, 80, 40, LIGHT_BLUE, 'End Turn')
     demo_button = Button(MAP_WIDTH * TILE_SIZE + 20, 340, 160, 30, LIGHT_BLUE, 'DEMO MODE: OFF')
+    algo_button = Button(MAP_WIDTH * TILE_SIZE + 20, 420, 160, 30, LIGHT_BLUE, 'Algo: Dijkstra')
 
 
     running = True
@@ -199,6 +204,15 @@ def main():
                     normal_path_ready = False
                     normal_pending_path = None
                     normal_preview_path = None
+                elif algo_button.isOver(pos):
+                    # Toggle algorithm selection
+                    selected_algorithm = (selected_algorithm + 1) % len(algorithm_names)
+                    print(f"Algorithm: {algorithm_names[selected_algorithm]}")
+                    # Clear any running visualization
+                    dijkstra_generator = None
+                    dijkstra_state = None
+                    demo_path_ready = False
+                    demo_pending_path = None
                 else:
                     target_x, target_y = pos[0] // TILE_SIZE, pos[1] // TILE_SIZE
                     if constants.DEMO_MODE:
@@ -210,12 +224,16 @@ def main():
                             demo_pending_path = None
                             dijkstra_state = None  # Clear visualization
                         else:
-                            # First click - start visual Dijkstra demonstration (only if moves left)
+                            # First click - start visual pathfinding demonstration (only if moves left)
                             if (moves.moves > 0 and 0 <= target_x < MAP_WIDTH and 0 <= target_y < MAP_HEIGHT 
                                 and terrain_map[target_y][target_x] > 0):
                                 start = (player_hero.x, player_hero.y)
                                 goal = (target_x, target_y)
-                                dijkstra_generator = dijkstra_visual(start, goal, terrain_map)
+                                # Use selected algorithm
+                                if selected_algorithm == 0:
+                                    dijkstra_generator = dijkstra_visual(start, goal, terrain_map)
+                                else:
+                                    dijkstra_generator = astar_visual(start, goal, terrain_map)
                                 dijkstra_state = None
                                 dijkstra_last_step_time = pygame.time.get_ticks()
                                 demo_path_ready = False
@@ -277,6 +295,10 @@ def main():
         draw_army(screen, player_hero)
         moves.draw(screen, MAP_WIDTH * TILE_SIZE + 60, MAP_HEIGHT * TILE_SIZE - 100)
         draw_demo_mode_indicator()
+        # Draw algorithm selection button (only visible in demo mode)
+        if constants.DEMO_MODE:
+            algo_button.text = f'Algo: {algorithm_names[selected_algorithm]}'
+            algo_button.draw(screen)
         end_turn_button.draw(screen)
 
         # check if the hero has reached the enemy
