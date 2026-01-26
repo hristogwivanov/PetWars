@@ -73,6 +73,12 @@ def main():
     # Algorithm selection: 0 = Dijkstra, 1 = A*
     selected_algorithm = 0
     algorithm_names = ['Dijkstra', 'A*']
+    algorithm_complexity = ['O((V+E) log V)', 'O((V+E) log V)']
+    
+    # Algorithm execution stats
+    algo_start_time = 0
+    algo_execution_time = 0
+    algo_nodes_visited = 0
 
     # Warning message state
     show_no_moves_warning = False
@@ -242,6 +248,7 @@ def main():
                                         dijkstra_generator = astar_visual(start, goal, terrain_map)
                                     dijkstra_state = None
                                     dijkstra_last_step_time = pygame.time.get_ticks()
+                                    algo_start_time = pygame.time.get_ticks()
                                     demo_path_ready = False
                                     demo_pending_path = None
                                 else:
@@ -287,6 +294,8 @@ def main():
                         if dijkstra_state.get('path'):
                             demo_pending_path = dijkstra_state['path'][1:]  # Exclude start
                             demo_path_ready = True
+                            algo_execution_time = (pygame.time.get_ticks() - algo_start_time)
+                            algo_nodes_visited = len(dijkstra_state['visited'])
                         dijkstra_generator = None
                 except StopIteration:
                     dijkstra_generator = None
@@ -315,10 +324,21 @@ def main():
         draw_army(screen, player_hero)
         moves.draw(screen, MAP_WIDTH * TILE_SIZE + 60, MAP_HEIGHT * TILE_SIZE - 100)
         draw_demo_mode_indicator()
-        # Draw algorithm selection button (only visible in demo mode)
+        # Draw algorithm selection button and info (only visible in demo mode)
         if constants.DEMO_MODE:
             algo_button.text = f'Algo: {algorithm_names[selected_algorithm]}'
             algo_button.draw(screen)
+            
+            # Draw algorithm info below button
+            info_font = pygame.font.Font(None, 20)
+            complexity_text = info_font.render(f'Complexity: {algorithm_complexity[selected_algorithm]}', True, (80, 80, 80))
+            screen.blit(complexity_text, (MAP_WIDTH * TILE_SIZE + 20, 455))
+            
+            if algo_nodes_visited > 0:
+                visited_text = info_font.render(f'Nodes visited: {algo_nodes_visited}', True, (80, 80, 80))
+                screen.blit(visited_text, (MAP_WIDTH * TILE_SIZE + 20, 475))
+                time_text = info_font.render(f'Time: {algo_execution_time:.1f} ms', True, (80, 80, 80))
+                screen.blit(time_text, (MAP_WIDTH * TILE_SIZE + 20, 495))
         end_turn_button.draw(screen)
 
         # check if the hero has reached the enemy
