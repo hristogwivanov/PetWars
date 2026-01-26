@@ -74,6 +74,11 @@ def main():
     selected_algorithm = 0
     algorithm_names = ['Dijkstra', 'A*']
 
+    # Warning message state
+    show_no_moves_warning = False
+    warning_start_time = 0
+    WARNING_DURATION_MS = 2000  # Show warning for 2 seconds
+
     def draw_dijkstra_visualization(state):
         """Draw the current state of Dijkstra visualization."""
         # Create semi-transparent surface for overlays
@@ -225,19 +230,24 @@ def main():
                             dijkstra_state = None  # Clear visualization
                         else:
                             # First click - start visual pathfinding demonstration (only if moves left)
-                            if (moves.moves > 0 and 0 <= target_x < MAP_WIDTH and 0 <= target_y < MAP_HEIGHT 
+                            if (0 <= target_x < MAP_WIDTH and 0 <= target_y < MAP_HEIGHT 
                                 and terrain_map[target_y][target_x] > 0):
-                                start = (player_hero.x, player_hero.y)
-                                goal = (target_x, target_y)
-                                # Use selected algorithm
-                                if selected_algorithm == 0:
-                                    dijkstra_generator = dijkstra_visual(start, goal, terrain_map)
+                                if moves.moves > 0:
+                                    start = (player_hero.x, player_hero.y)
+                                    goal = (target_x, target_y)
+                                    # Use selected algorithm
+                                    if selected_algorithm == 0:
+                                        dijkstra_generator = dijkstra_visual(start, goal, terrain_map)
+                                    else:
+                                        dijkstra_generator = astar_visual(start, goal, terrain_map)
+                                    dijkstra_state = None
+                                    dijkstra_last_step_time = pygame.time.get_ticks()
+                                    demo_path_ready = False
+                                    demo_pending_path = None
                                 else:
-                                    dijkstra_generator = astar_visual(start, goal, terrain_map)
-                                dijkstra_state = None
-                                dijkstra_last_step_time = pygame.time.get_ticks()
-                                demo_path_ready = False
-                                demo_pending_path = None
+                                    # No moves left - show warning
+                                    show_no_moves_warning = True
+                                    warning_start_time = pygame.time.get_ticks()
                     else:
                         # Normal mode - also two-click
                         if normal_path_ready:
@@ -248,16 +258,21 @@ def main():
                             normal_pending_path = None
                             normal_preview_path = None
                         else:
-                            # First click - calculate and show path instantly (only if moves left)
-                            if (moves.moves > 0 and 0 <= target_x < MAP_WIDTH and 0 <= target_y < MAP_HEIGHT 
+                            # First click - calculate and show path instantly
+                            if (0 <= target_x < MAP_WIDTH and 0 <= target_y < MAP_HEIGHT 
                                 and terrain_map[target_y][target_x] > 0):
-                                start = (player_hero.x, player_hero.y)
-                                goal = (target_x, target_y)
-                                path = dijkstra_path(start, goal, terrain_map)
-                                if path:
-                                    normal_preview_path = path
-                                    normal_pending_path = path[1:]  # Exclude start
-                                    normal_path_ready = True
+                                if moves.moves > 0:
+                                    start = (player_hero.x, player_hero.y)
+                                    goal = (target_x, target_y)
+                                    path = dijkstra_path(start, goal, terrain_map)
+                                    if path:
+                                        normal_preview_path = path
+                                        normal_pending_path = path[1:]  # Exclude start
+                                        normal_path_ready = True
+                                else:
+                                    # No moves left - show warning
+                                    show_no_moves_warning = True
+                                    warning_start_time = pygame.time.get_ticks()
 
         # Process Dijkstra visualization steps in demo mode
         if dijkstra_generator is not None:
@@ -275,6 +290,11 @@ def main():
                         dijkstra_generator = None
                 except StopIteration:
                     dijkstra_generator = None
+
+        # Auto-hide warning after duration
+        if show_no_moves_warning:
+            if pygame.time.get_ticks() - warning_start_time >= WARNING_DURATION_MS:
+                show_no_moves_warning = False
 
         player_hero.update(moves)
 
@@ -370,6 +390,15 @@ def main():
         #         resources.milk+=milk2.quantity
         #         resources_on_map = [resource for resource in resources_on_map if not (resource.x == player_hero.x and resource.y == player_hero.y)]
 
+
+        # Draw no moves warning
+        if show_no_moves_warning:
+            warning_font = pygame.font.Font(None, 36)
+            warning_text = warning_font.render("No moves remaining!", True, (200, 0, 0))
+            warning_rect = warning_text.get_rect(center=(MAP_WIDTH * TILE_SIZE // 2, 30))
+            pygame.draw.rect(screen, (255, 220, 220), warning_rect.inflate(20, 10))
+            pygame.draw.rect(screen, (200, 0, 0), warning_rect.inflate(20, 10), 2)
+            screen.blit(warning_text, warning_rect)
 
         if show_win_dialog:
             # draw the win dialog frame
