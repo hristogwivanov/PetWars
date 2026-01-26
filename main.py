@@ -5,7 +5,7 @@ from constants import *
 from gamedata import *
 from gamedata import Cat_Hero
 from interface import *
-from pathfinding import dijkstra_visual
+from pathfinding import dijkstra_visual, dijkstra_path
 
 
 def main():
@@ -64,48 +64,82 @@ def main():
     dijkstra_generator = None
     dijkstra_state = None
     dijkstra_last_step_time = 0
+    demo_path_ready = False  # True when visualization done, waiting for second click
+    demo_pending_path = None  # Store path until user confirms
+    normal_path_ready = False  # For normal mode two-click
+    normal_pending_path = None  # Store path for normal mode
+    normal_preview_path = None  # Full path for preview drawing
 
     def draw_dijkstra_visualization(state):
         """Draw the current state of Dijkstra visualization."""
-        if state is None:
-            return
-        
         # Create semi-transparent surface for overlays
         overlay = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
         
-        # Draw visited nodes (orange)
-        if state.get('visited'):
-            overlay.fill(COLOR_VISITED)
-            for (x, y) in state['visited']:
+        # Draw demo mode visualization
+        if state is not None:
+            # Draw visited nodes (orange)
+            if state.get('visited'):
+                overlay.fill(COLOR_VISITED)
+                for (x, y) in state['visited']:
+                    screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
+            
+            # Draw frontier nodes (yellow)
+            if state.get('frontier'):
+                overlay.fill(COLOR_FRONTIER)
+                for (x, y) in state['frontier']:
+                    screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
+            
+            # Draw current node (red)
+            if state.get('current'):
+                overlay.fill(COLOR_CURRENT)
+                x, y = state['current']
                 screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
-        
-        # Draw frontier nodes (yellow)
-        if state.get('frontier'):
-            overlay.fill(COLOR_FRONTIER)
-            for (x, y) in state['frontier']:
-                screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
-        
-        # Draw current node (red)
-        if state.get('current'):
-            overlay.fill(COLOR_CURRENT)
-            x, y = state['current']
-            screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
-        
-        # Draw final path (blue)
-        if state.get('path'):
+            
+            # Draw final path (blue)
+            if state.get('path'):
+                overlay.fill(COLOR_PATH)
+                for (x, y) in state['path']:
+                    screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
+
+        # Draw normal mode preview path
+        if normal_preview_path:
             overlay.fill(COLOR_PATH)
-            for (x, y) in state['path']:
+            for (x, y) in normal_preview_path:
                 screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
 
     def draw_demo_mode_indicator():
         """Draw indicator showing demo mode status."""
+        nonlocal demo_path_ready
         font = pygame.font.Font(None, 24)
-        mode_text = "DEMO MODE: ON" if constants.DEMO_MODE else "DEMO MODE: OFF"
-        color = (0, 150, 0) if constants.DEMO_MODE else (150, 0, 0)
-        text = font.render(mode_text, True, color)
-        screen.blit(text, (MAP_WIDTH * TILE_SIZE + 20, 140))
-        hint_text = font.render("Press D to toggle", True, (100, 100, 100))
-        screen.blit(hint_text, (MAP_WIDTH * TILE_SIZE + 20, 160))
+        
+        # Update button color and text based on state
+        if constants.DEMO_MODE:
+            demo_button.color = (0, 150, 0)
+            demo_button.text = 'DEMO MODE: ON'
+        else:
+            demo_button.color = LIGHT_BLUE
+            demo_button.text = 'DEMO MODE: OFF'
+        demo_button.draw(screen)
+        
+        # Show instruction based on state
+        if constants.DEMO_MODE:
+            if demo_path_ready:
+                action_text = font.render("Click anywhere to", True, (0, 100, 200))
+                screen.blit(action_text, (MAP_WIDTH * TILE_SIZE + 20, 380))
+                action_text2 = font.render("MOVE", True, (0, 100, 200))
+                screen.blit(action_text2, (MAP_WIDTH * TILE_SIZE + 20, 400))
+            else:
+                action_text = font.render("Click tile to find path", True, (100, 100, 100))
+                screen.blit(action_text, (MAP_WIDTH * TILE_SIZE + 20, 380))
+        else:
+            if normal_path_ready:
+                action_text = font.render("Click anywhere to", True, (0, 100, 200))
+                screen.blit(action_text, (MAP_WIDTH * TILE_SIZE + 20, 380))
+                action_text2 = font.render("MOVE", True, (0, 100, 200))
+                screen.blit(action_text2, (MAP_WIDTH * TILE_SIZE + 20, 400))
+            else:
+                action_text = font.render("Click tile to find path", True, (100, 100, 100))
+                screen.blit(action_text, (MAP_WIDTH * TILE_SIZE + 20, 380))
 
     win_dialog_frame = pygame.Rect(MAP_WIDTH * TILE_SIZE / 2 - 130, (MAP_HEIGHT * TILE_SIZE) / 2 - 90, 260, 180)
 
@@ -119,6 +153,7 @@ def main():
 
     moves = MovesCounter(3)
     end_turn_button = Button(MAP_WIDTH * TILE_SIZE + 60, MAP_HEIGHT * TILE_SIZE - 50, 80, 40, LIGHT_BLUE, 'End Turn')
+    demo_button = Button(MAP_WIDTH * TILE_SIZE + 20, 340, 160, 30, LIGHT_BLUE, 'DEMO MODE: OFF')
 
 
     running = True
@@ -136,6 +171,8 @@ def main():
                     # Clear any running visualization
                     dijkstra_generator = None
                     dijkstra_state = None
+                    demo_path_ready = False
+                    demo_pending_path = None
                 if event.key == pygame.K_LEFT:
                     player_hero.set_target(player_hero.x - 1, player_hero.y)
                 elif event.key == pygame.K_RIGHT:
@@ -150,19 +187,59 @@ def main():
                     running = False
                 if end_turn_button.isOver(pos):
                     end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary)
+                elif demo_button.isOver(pos):
+                    # Toggle demo mode via button click
+                    constants.DEMO_MODE = not constants.DEMO_MODE
+                    print(f"Demo mode: {'ON' if constants.DEMO_MODE else 'OFF'}")
+                    # Clear any running visualization
+                    dijkstra_generator = None
+                    dijkstra_state = None
+                    demo_path_ready = False
+                    demo_pending_path = None
+                    normal_path_ready = False
+                    normal_pending_path = None
+                    normal_preview_path = None
                 else:
                     target_x, target_y = pos[0] // TILE_SIZE, pos[1] // TILE_SIZE
                     if constants.DEMO_MODE:
-                        # Start visual Dijkstra demonstration
-                        if (0 <= target_x < MAP_WIDTH and 0 <= target_y < MAP_HEIGHT 
-                            and terrain_map[target_y][target_x] > 0):
-                            start = (player_hero.x, player_hero.y)
-                            goal = (target_x, target_y)
-                            dijkstra_generator = dijkstra_visual(start, goal, terrain_map)
-                            dijkstra_state = None
-                            dijkstra_last_step_time = pygame.time.get_ticks()
+                        if demo_path_ready:
+                            # Second click - execute the movement
+                            if demo_pending_path:
+                                player_hero.path = demo_pending_path
+                            demo_path_ready = False
+                            demo_pending_path = None
+                            dijkstra_state = None  # Clear visualization
+                        else:
+                            # First click - start visual Dijkstra demonstration (only if moves left)
+                            if (moves.moves > 0 and 0 <= target_x < MAP_WIDTH and 0 <= target_y < MAP_HEIGHT 
+                                and terrain_map[target_y][target_x] > 0):
+                                start = (player_hero.x, player_hero.y)
+                                goal = (target_x, target_y)
+                                dijkstra_generator = dijkstra_visual(start, goal, terrain_map)
+                                dijkstra_state = None
+                                dijkstra_last_step_time = pygame.time.get_ticks()
+                                demo_path_ready = False
+                                demo_pending_path = None
                     else:
-                        player_hero.set_target(target_x, target_y)
+                        # Normal mode - also two-click
+                        if normal_path_ready:
+                            # Second click - execute the movement
+                            if normal_pending_path:
+                                player_hero.path = normal_pending_path
+                            normal_path_ready = False
+                            normal_pending_path = None
+                            normal_preview_path = None
+                        else:
+                            # First click - calculate and show path instantly (only if moves left)
+                            if (moves.moves > 0 and 0 <= target_x < MAP_WIDTH and 0 <= target_y < MAP_HEIGHT 
+                                and terrain_map[target_y][target_x] > 0):
+                                start = (player_hero.x, player_hero.y)
+                                goal = (target_x, target_y)
+                                path = dijkstra_path(start, goal, terrain_map)
+                                if path:
+                                    normal_preview_path = path
+                                    normal_pending_path = path[1:]  # Exclude start
+                                    normal_path_ready = True
 
         # Process Dijkstra visualization steps in demo mode
         if dijkstra_generator is not None:
@@ -172,10 +249,11 @@ def main():
                     dijkstra_state = next(dijkstra_generator)
                     dijkstra_last_step_time = current_time
                     
-                    # When done, set the path and clean up
+                    # When done, store path and wait for second click
                     if dijkstra_state.get('done'):
                         if dijkstra_state.get('path'):
-                            player_hero.path = dijkstra_state['path'][1:]  # Exclude start
+                            demo_pending_path = dijkstra_state['path'][1:]  # Exclude start
+                            demo_path_ready = True
                         dijkstra_generator = None
                 except StopIteration:
                     dijkstra_generator = None
