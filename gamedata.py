@@ -2,6 +2,7 @@ import pygame
 import os
 from constants import *
 import random
+from pathfinding import dijkstra_path
 
 
 class Hero:
@@ -10,43 +11,49 @@ class Hero:
         self.y = y
         self.target_x = x
         self.target_y = y
+        self.path = []  # Store calculated path
         self.image = pygame.transform.scale(pygame.image.load(os.path.join('images', image_path)), (TILE_SIZE, TILE_SIZE))
 
     def draw(self, screen):
         screen.blit(self.image, (self.x * TILE_SIZE, self.y * TILE_SIZE))
 
     def set_target(self, target_x, target_y):
-        if target_y>=MAP_HEIGHT or target_y<0:
-            return
-        if target_x>=MAP_WIDTH or target_x<0:
-            return
+        # Validate target bounds
+        if target_y >= MAP_HEIGHT or target_y < 0:
+            return False
+        if target_x >= MAP_WIDTH or target_x < 0:
+            return False
+        # Check if target is walkable
         if terrain_map[target_y][target_x] <= 0:
-            return
-        if abs(self.x - target_x) + abs(self.y - target_y) == 1:
+            return False
+        
+        # Use Dijkstra to find path
+        start = (self.x, self.y)
+        goal = (target_x, target_y)
+        
+        path = dijkstra_path(start, goal, terrain_map)
+        if path and len(path) > 1:
+            self.path = path[1:]  # Exclude starting position
             self.target_x = target_x
             self.target_y = target_y
+            return True
+        return False
 
     def update(self, moves_counter):
+        # Move along the calculated path
         if moves_counter.moves <= 0:
             return
-
-        if self.x < self.target_x:
-            self.x += 1
-            moves_counter.moves -= 1
-        elif self.x > self.target_x:
-            self.x -= 1
-            moves_counter.moves -= 1
-
-        if self.y < self.target_y:
-            self.y += 1
-            moves_counter.moves -= 1
-        elif self.y > self.target_y:
-            self.y -= 1
+        
+        if self.path:
+            # Take next step in path
+            next_pos = self.path.pop(0)
+            self.x, self.y = next_pos
             moves_counter.moves -= 1
     
     def reset_target(self):
         self.target_x = self.x
         self.target_y = self.y
+        self.path = []  # Clear any remaining path
 
 class Cat_Hero(Hero):
     def __init__(self, x, y, image_path):

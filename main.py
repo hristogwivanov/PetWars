@@ -1,9 +1,11 @@
 import pygame
 import os
+import constants
 from constants import *
 from gamedata import *
 from gamedata import Cat_Hero
 from interface import *
+from pathfinding import dijkstra_visual
 
 
 def main():
@@ -13,7 +15,6 @@ def main():
     clock = pygame.time.Clock()
     background = pygame.image.load(os.path.join('images', 'map.png'))
     background = pygame.transform.scale(background, (MAP_WIDTH * TILE_SIZE, MAP_HEIGHT * TILE_SIZE))
-
 
 
     def draw_map_objects(event_map):
@@ -53,34 +54,58 @@ def main():
                     draw_dictionary[item]()
 
 
-
-    
-
-
     player_hero = Cat_Hero(1, MAP_HEIGHT-2, 'hero.png')  
     enemy_hero = Dog_Hero(MAP_WIDTH-2, 1, 'enemy.png')  
     player_hero.streetcats += 10
 
-    #####LEGACY CODE - The resources were presented as instances of class, now they are just on the event map#####
+    resources = Resources()
 
-    # cat_house = House(0, MAP_HEIGHT -3, 'CatHouse.png') 
-    # dog_house = House(MAP_WIDTH-2.7, 0, 'DogHouse.png') 
-    # resources_on_map=[]
-    # milk1 = Resource(0, 5, 'milk', 10)
-    # milk2 = Resource(3, 0, 'milk', 20)
-    # meowcoins1 = Resource(0, 4, 'meowcoins', 10000)
-    # meowcoins2 = Resource(3, 1, 'meowcoins', 20000)
-    # meowcoins3 = Resource(7, 5, 'meowcoins', 100000)
-    # fish1 = Resource(1, 5, 'fish', 10)
-    # dogecoins1 = Resource(13, 5, 'dogecoins', 10000)
-    # dogecoins2 = Resource(10, 8, 'dogecoins', 20000)
-    # dogecoins3 = Resource(7, 6, 'dogecoins', 20000)
-    # bones1 = Resource(13, 4, 'bones', 10)
-    # bones2 = Resource(10, 9, 'bones', 20)
-    # meat1 = Resource(12, 4, 'meat', 10)
-    # resources_on_map.extend([milk1, milk2, meowcoins1, meowcoins2, meowcoins3, fish1, dogecoins1, dogecoins2, dogecoins3, bones1, bones2, meat1])
+    # Dijkstra visualization state
+    dijkstra_generator = None
+    dijkstra_state = None
+    dijkstra_last_step_time = 0
 
-    # milkfarm = Farm(5, 9, 'milk')
+    def draw_dijkstra_visualization(state):
+        """Draw the current state of Dijkstra visualization."""
+        if state is None:
+            return
+        
+        # Create semi-transparent surface for overlays
+        overlay = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+        
+        # Draw visited nodes (orange)
+        if state.get('visited'):
+            overlay.fill(COLOR_VISITED)
+            for (x, y) in state['visited']:
+                screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
+        
+        # Draw frontier nodes (yellow)
+        if state.get('frontier'):
+            overlay.fill(COLOR_FRONTIER)
+            for (x, y) in state['frontier']:
+                screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
+        
+        # Draw current node (red)
+        if state.get('current'):
+            overlay.fill(COLOR_CURRENT)
+            x, y = state['current']
+            screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
+        
+        # Draw final path (blue)
+        if state.get('path'):
+            overlay.fill(COLOR_PATH)
+            for (x, y) in state['path']:
+                screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
+
+    def draw_demo_mode_indicator():
+        """Draw indicator showing demo mode status."""
+        font = pygame.font.Font(None, 24)
+        mode_text = "DEMO MODE: ON" if constants.DEMO_MODE else "DEMO MODE: OFF"
+        color = (0, 150, 0) if constants.DEMO_MODE else (150, 0, 0)
+        text = font.render(mode_text, True, color)
+        screen.blit(text, (MAP_WIDTH * TILE_SIZE + 20, 140))
+        hint_text = font.render("Press D to toggle", True, (100, 100, 100))
+        screen.blit(hint_text, (MAP_WIDTH * TILE_SIZE + 20, 160))
 
     win_dialog_frame = pygame.Rect(MAP_WIDTH * TILE_SIZE / 2 - 130, (MAP_HEIGHT * TILE_SIZE) / 2 - 90, 260, 180)
 
@@ -96,26 +121,6 @@ def main():
     end_turn_button = Button(MAP_WIDTH * TILE_SIZE + 60, MAP_HEIGHT * TILE_SIZE - 50, 80, 40, LIGHT_BLUE, 'End Turn')
 
 
-
-    # def draw_grid(screen):
-    #     for x in range(0, MAP_WIDTH * TILE_SIZE, TILE_SIZE):
-    #         for y in range(0, MAP_HEIGHT * TILE_SIZE, TILE_SIZE):
-    #             pygame.draw.rect(screen, (200, 200, 200), pygame.Rect(x, y, TILE_SIZE, TILE_SIZE), 1)
-
-    # def draw_tile_numbers(screen):
-    #     font = pygame.font.Font(None, 24)
-    #     number = 1
-    #     for y in range(MAP_HEIGHT-1, -1, -1):  # start from the bottom
-    #         for x in range(MAP_WIDTH):
-    #             text = font.render(str(number), True, (0, 0, 0))
-    #             screen.blit(text, (x * TILE_SIZE + TILE_SIZE / 2 - text.get_width() / 2, y * TILE_SIZE + TILE_SIZE / 2 - text.get_height() / 2))
-    #             number += 1
-
-
-    resources = Resources()
-
-
-
     running = True
     while running:
         for event in pygame.event.get():
@@ -124,6 +129,13 @@ def main():
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_e:
                     end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary)
+                elif event.key == pygame.K_d:
+                    # Toggle demo mode
+                    constants.DEMO_MODE = not constants.DEMO_MODE
+                    print(f"Demo mode: {'ON' if constants.DEMO_MODE else 'OFF'}")
+                    # Clear any running visualization
+                    dijkstra_generator = None
+                    dijkstra_state = None
                 if event.key == pygame.K_LEFT:
                     player_hero.set_target(player_hero.x - 1, player_hero.y)
                 elif event.key == pygame.K_RIGHT:
@@ -140,38 +152,53 @@ def main():
                     end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary)
                 else:
                     target_x, target_y = pos[0] // TILE_SIZE, pos[1] // TILE_SIZE
-                    player_hero.set_target(target_x, target_y)
+                    if constants.DEMO_MODE:
+                        # Start visual Dijkstra demonstration
+                        if (0 <= target_x < MAP_WIDTH and 0 <= target_y < MAP_HEIGHT 
+                            and terrain_map[target_y][target_x] > 0):
+                            start = (player_hero.x, player_hero.y)
+                            goal = (target_x, target_y)
+                            dijkstra_generator = dijkstra_visual(start, goal, terrain_map)
+                            dijkstra_state = None
+                            dijkstra_last_step_time = pygame.time.get_ticks()
+                    else:
+                        player_hero.set_target(target_x, target_y)
+
+        # Process Dijkstra visualization steps in demo mode
+        if dijkstra_generator is not None:
+            current_time = pygame.time.get_ticks()
+            if current_time - dijkstra_last_step_time >= DEMO_DELAY_MS:
+                try:
+                    dijkstra_state = next(dijkstra_generator)
+                    dijkstra_last_step_time = current_time
+                    
+                    # When done, set the path and clean up
+                    if dijkstra_state.get('done'):
+                        if dijkstra_state.get('path'):
+                            player_hero.path = dijkstra_state['path'][1:]  # Exclude start
+                        dijkstra_generator = None
+                except StopIteration:
+                    dijkstra_generator = None
 
         player_hero.update(moves)
 
-        #print(f"Player coordinates: ({map[player_hero.y][player_hero.x]})")
-        #draw_grid(screen)
-        #draw_tile_numbers(screen)
-        
-        
         screen.fill(WHITE)
         screen.blit(background, (0, 0))
         
-        # cat_house.draw(screen)
-        # dog_house.draw(screen)
-        
         draw_map_objects(event_map)
+        
+        # Draw Dijkstra visualization overlay
+        draw_dijkstra_visualization(dijkstra_state)
+        
         player_hero.draw(screen)
         enemy_hero.draw(screen)
 
 
-        # for resource in resources_on_map:
-        #     resource.draw(screen)
-
-        # milkfarm.draw(screen)
-
-        #milk1.draw(screen)
-        #milk2.draw(screen)
-        
         Resources.draw_resources(screen, resources)
         draw_date(screen)
         draw_army(screen, player_hero)
         moves.draw(screen, MAP_WIDTH * TILE_SIZE + 60, MAP_HEIGHT * TILE_SIZE - 100)
+        draw_demo_mode_indicator()
         end_turn_button.draw(screen)
 
         # check if the hero has reached the enemy

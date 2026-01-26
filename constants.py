@@ -8,6 +8,15 @@ WHITE = (255, 255, 255)
 LIGHT_BLUE = (173, 216, 230)
 BLACK = (0, 0, 0)
 
+# Dijkstra visualization colors
+COLOR_VISITED = (255, 200, 100, 150)    # Orange - already explored
+COLOR_FRONTIER = (255, 255, 100, 150)   # Yellow - currently in queue
+COLOR_PATH = (100, 200, 255, 150)       # Blue - final shortest path
+COLOR_CURRENT = (255, 100, 100, 150)    # Red - currently processing
+
+# Demo mode toggle (press D to toggle)
+DEMO_MODE = False
+DEMO_DELAY_MS = 200  # Milliseconds between visualization steps
 
 terrain_map = [
     [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
