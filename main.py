@@ -175,6 +175,18 @@ def main():
     demo_button = Button(MAP_WIDTH * TILE_SIZE + 20, 340, 160, 30, LIGHT_BLUE, 'DEMO MODE: OFF')
     algo_button = Button(MAP_WIDTH * TILE_SIZE + 20, 420, 160, 30, LIGHT_BLUE, 'Algo: Dijkstra')
 
+    def redraw_game():
+        """Redraw the game screen - used for enemy turn animation."""
+        screen.fill(WHITE)
+        screen.blit(background, (0, 0))
+        draw_map_objects(event_map)
+        player_hero.draw(screen)
+        enemy_hero.draw(screen)
+        Resources.draw_resources(screen, resources)
+        draw_date(screen)
+        draw_army(screen, player_hero)
+        moves.draw(screen, MAP_WIDTH * TILE_SIZE + 60, MAP_HEIGHT * TILE_SIZE - 100)
+        end_turn_button.draw(screen)
 
     running = True
     while running:
@@ -183,7 +195,7 @@ def main():
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_e:
-                    end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary)
+                    end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary, redraw_game)
                 elif event.key == pygame.K_d:
                     # Toggle demo mode
                     constants.DEMO_MODE = not constants.DEMO_MODE
@@ -206,7 +218,7 @@ def main():
                 if show_win_dialog and ok_button.isOver(pos):
                     running = False
                 if end_turn_button.isOver(pos):
-                    end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary)
+                    end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary, redraw_game)
                 elif demo_button.isOver(pos):
                     # Toggle demo mode via button click
                     constants.DEMO_MODE = not constants.DEMO_MODE

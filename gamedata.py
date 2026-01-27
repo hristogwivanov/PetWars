@@ -68,6 +68,59 @@ class Dog_Hero(Hero):
         self.pugs = 0
         self.malinoises = 0
         self.doges = 0
+        self.ai_target = None  # Current AI target position
+    
+    def pick_random_target(self):
+        """Pick a tile with an event as the next target. Prioritize neighboring tiles."""
+        # First check neighboring tiles for events
+        neighbors = [
+            (self.x - 1, self.y), (self.x + 1, self.y),
+            (self.x, self.y - 1), (self.x, self.y + 1)
+        ]
+        neighbor_targets = []
+        for nx, ny in neighbors:
+            if 0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT:
+                if terrain_map[ny][nx] > 0 and event_map[ny][nx] > 0:
+                    neighbor_targets.append((nx, ny))
+        
+        if neighbor_targets:
+            self.ai_target = random.choice(neighbor_targets)
+            self.path = [self.ai_target]  # Direct move to neighbor
+            return True
+        
+        # Otherwise find tiles with events (not empty fields)
+        event_tiles = []
+        for y in range(MAP_HEIGHT):
+            for x in range(MAP_WIDTH):
+                if terrain_map[y][x] > 0 and event_map[y][x] > 0 and (x, y) != (self.x, self.y):
+                    event_tiles.append((x, y))
+        
+        if event_tiles:
+            self.ai_target = random.choice(event_tiles)
+            start = (self.x, self.y)
+            path = dijkstra_path(start, self.ai_target, terrain_map)
+            if path and len(path) > 1:
+                self.path = path[1:]  # Exclude starting position
+                return True
+        return False
+    
+    def ai_update(self):
+        """AI movement - move one step toward target, pick new target if reached."""
+        # If no target or reached target, pick a new one
+        if self.ai_target is None or (self.x, self.y) == self.ai_target:
+            self.pick_random_target()
+        
+        # If no path, try to get one
+        if not self.path and self.ai_target:
+            start = (self.x, self.y)
+            path = dijkstra_path(start, self.ai_target, terrain_map)
+            if path and len(path) > 1:
+                self.path = path[1:]
+        
+        # Move one step along path
+        if self.path:
+            next_pos = self.path.pop(0)
+            self.x, self.y = next_pos
 
 class House: 
     def __init__(self, x, y, image_path):
@@ -337,46 +390,26 @@ def draw_date(screen):
     month_text = font.render('Month: ' + str(month_dictionary[date['month']]), True, (0, 0, 0))
     screen.blit(month_text, (MAP_WIDTH * TILE_SIZE + 20, 840))
 
-def end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary):
+def end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary, redraw_callback=None):
     date_update()
     resources.update_resources()
     moves.moves = 3
     player_hero.reset_target()
-    enemy_turn(enemy_hero, moves, event_dictionary)
+    enemy_turn(enemy_hero, moves, event_dictionary, redraw_callback)
 
 def fight(player_hero):
     pass
 
-def enemy_turn(enemy_hero, moves, event_dictionary):
-    def move_left():
-        enemy_hero.set_target(enemy_hero.x - 1, enemy_hero.y)
-        print('shaq moves left')
-
-
-    def move_right():
-        enemy_hero.set_target(enemy_hero.x + 1, enemy_hero.y)
-        print('shaq moves right')
-
-
-    def move_up():
-        enemy_hero.set_target(enemy_hero.x, enemy_hero.y - 1)
-        print('shaq moves up')
-
-
-    def move_down():
-        enemy_hero.set_target(enemy_hero.x, enemy_hero.y + 1)
-        print('shaq moves down')
-
-        
+def enemy_turn(enemy_hero, moves, event_dictionary, redraw_callback=None):
+    """AI-controlled enemy turn - moves 3 steps toward a random target."""
     for i in range(3):
-        pygame.time.delay(300)
-        moveschoices = [move_left, move_right, move_up, move_down]
-        random.choice(moveschoices)()
-        enemy_hero.update(moves)
-        if event_map[enemy_hero.y][enemy_hero.x]>20:
+        enemy_hero.ai_update()
+        if redraw_callback:
+            redraw_callback()
+            pygame.display.flip()
+        pygame.time.delay(400)
+        if event_map[enemy_hero.y][enemy_hero.x] > 20:
             if event_map[enemy_hero.y][enemy_hero.x] in event_dictionary:
-                #enemy_hero[event_map[enemy_hero.y][enemy_hero.x]]()
-                if event_map[enemy_hero.y][enemy_hero.x] >=20 and event_map[enemy_hero.y][enemy_hero.x] <=100 or event_map[enemy_hero.y][enemy_hero.x]>=200: 
+                if event_map[enemy_hero.y][enemy_hero.x] >= 20 and event_map[enemy_hero.y][enemy_hero.x] <= 100 or event_map[enemy_hero.y][enemy_hero.x] >= 200: 
                     event_map[enemy_hero.y][enemy_hero.x] = 0
     moves.moves = 3
-    
