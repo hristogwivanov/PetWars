@@ -163,6 +163,58 @@ def heuristic(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
+def astar_path(start, goal, terrain_map):
+    """
+    Find shortest path using A* algorithm (instant version).
+    """
+    open_set = [(heuristic(start, goal), start)]
+    open_set_lookup = {start}
+    g_score = {start: 0}
+    came_from = {}
+    visited = set()
+    
+    while open_set:
+        _, current = heapq.heappop(open_set)
+        open_set_lookup.discard(current)
+        
+        if current in visited:
+            continue
+        
+        visited.add(current)
+        
+        if current == goal:
+            path = []
+            node = current
+            while node in came_from:
+                path.append(node)
+                node = came_from[node]
+            path.append(start)
+            return path[::-1]
+        
+        x, y = current
+        for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+            nx, ny = x + dx, y + dy
+            
+            if not (0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT):
+                continue
+            if terrain_map[ny][nx] != 1:
+                continue
+            if (nx, ny) in visited:
+                continue
+            
+            tentative_g = g_score[current] + 1
+            
+            if tentative_g < g_score.get((nx, ny), float('inf')):
+                came_from[(nx, ny)] = current
+                g_score[(nx, ny)] = tentative_g
+                f_score = tentative_g + heuristic((nx, ny), goal)
+                if (nx, ny) not in open_set_lookup:
+                    heapq.heappush(open_set, (f_score, (nx, ny)))
+                    open_set_lookup.add((nx, ny))
+    
+    return None
+
+
 def astar_visual(start, goal, terrain_map):
     """
     Generator version of A* for step-by-step visualization.

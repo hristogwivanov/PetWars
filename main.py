@@ -1,11 +1,12 @@
 import pygame
 import os
+import time
 import constants
 from constants import *
 from gamedata import *
 from gamedata import Cat_Hero
 from interface import *
-from pathfinding import dijkstra_visual, dijkstra_path, astar_visual
+from pathfinding import dijkstra_visual, dijkstra_path, astar_visual, astar_path
 
 
 def main():
@@ -69,11 +70,14 @@ def main():
     normal_path_ready = False  # For normal mode two-click
     normal_pending_path = None  # Store path for normal mode
     normal_preview_path = None  # Full path for preview drawing
+    demo_target_tile = None  # Store target tile for confirmation
+    normal_target_tile = None  # Store target tile for confirmation
     
     # Algorithm selection: 0 = Dijkstra, 1 = A*
     selected_algorithm = 0
     algorithm_names = ['Dijkstra', 'A*']
     algorithm_complexity = ['O((V+E) log V)', 'O((V+E) log V)']
+    algorithm_descriptions = ['Explores all directions', 'Heuristic-guided search']
     
     # Algorithm execution stats
     algo_start_time = 0
@@ -227,45 +231,52 @@ def main():
                 else:
                     target_x, target_y = pos[0] // TILE_SIZE, pos[1] // TILE_SIZE
                     if constants.DEMO_MODE:
-                        if demo_path_ready:
-                            # Second click - execute the movement
+                        if demo_path_ready and demo_target_tile == (target_x, target_y):
+                            # Second click on same tile - execute the movement
                             if demo_pending_path:
                                 player_hero.path = demo_pending_path
                             demo_path_ready = False
                             demo_pending_path = None
+                            demo_target_tile = None
                             dijkstra_state = None  # Clear visualization
                         else:
-                            # First click - start visual pathfinding demonstration (only if moves left)
+                            # First click or different tile - start visual pathfinding
                             if (0 <= target_x < MAP_WIDTH and 0 <= target_y < MAP_HEIGHT 
                                 and terrain_map[target_y][target_x] > 0):
                                 if moves.moves > 0:
                                     start = (player_hero.x, player_hero.y)
                                     goal = (target_x, target_y)
-                                    # Use selected algorithm
+                                    algo_start_time = time.perf_counter()
+                                    if selected_algorithm == 0:
+                                        temp_path = dijkstra_path(start, goal, terrain_map)
+                                    else:
+                                        temp_path = astar_path(start, goal, terrain_map)
+                                    algo_execution_time = (time.perf_counter() - algo_start_time) * 1000
                                     if selected_algorithm == 0:
                                         dijkstra_generator = dijkstra_visual(start, goal, terrain_map)
                                     else:
                                         dijkstra_generator = astar_visual(start, goal, terrain_map)
                                     dijkstra_state = None
                                     dijkstra_last_step_time = pygame.time.get_ticks()
-                                    algo_start_time = pygame.time.get_ticks()
                                     demo_path_ready = False
                                     demo_pending_path = None
+                                    demo_target_tile = (target_x, target_y)
                                 else:
                                     # No moves left - show warning
                                     show_no_moves_warning = True
                                     warning_start_time = pygame.time.get_ticks()
                     else:
                         # Normal mode - also two-click
-                        if normal_path_ready:
-                            # Second click - execute the movement
+                        if normal_path_ready and normal_target_tile == (target_x, target_y):
+                            # Second click on same tile - execute the movement
                             if normal_pending_path:
                                 player_hero.path = normal_pending_path
                             normal_path_ready = False
                             normal_pending_path = None
                             normal_preview_path = None
+                            normal_target_tile = None
                         else:
-                            # First click - calculate and show path instantly
+                            # First click or different tile - calculate and show path instantly
                             if (0 <= target_x < MAP_WIDTH and 0 <= target_y < MAP_HEIGHT 
                                 and terrain_map[target_y][target_x] > 0):
                                 if moves.moves > 0:
@@ -276,6 +287,7 @@ def main():
                                         normal_preview_path = path
                                         normal_pending_path = path[1:]  # Exclude start
                                         normal_path_ready = True
+                                        normal_target_tile = (target_x, target_y)
                                 else:
                                     # No moves left - show warning
                                     show_no_moves_warning = True
@@ -289,13 +301,15 @@ def main():
                     dijkstra_state = next(dijkstra_generator)
                     dijkstra_last_step_time = current_time
                     
+                    # Update nodes visited in real-time
+                    if dijkstra_state.get('visited'):
+                        algo_nodes_visited = len(dijkstra_state['visited'])
+                    
                     # When done, store path and wait for second click
                     if dijkstra_state.get('done'):
                         if dijkstra_state.get('path'):
                             demo_pending_path = dijkstra_state['path'][1:]  # Exclude start
                             demo_path_ready = True
-                            algo_execution_time = (pygame.time.get_ticks() - algo_start_time)
-                            algo_nodes_visited = len(dijkstra_state['visited'])
                         dijkstra_generator = None
                 except StopIteration:
                     dijkstra_generator = None
@@ -331,14 +345,18 @@ def main():
             
             # Draw algorithm info below button
             info_font = pygame.font.Font(None, 20)
+            desc_text = info_font.render(f'{algorithm_descriptions[selected_algorithm]}', True, (60, 60, 120))
+            screen.blit(desc_text, (MAP_WIDTH * TILE_SIZE + 20, 455))
             complexity_text = info_font.render(f'Complexity: {algorithm_complexity[selected_algorithm]}', True, (80, 80, 80))
-            screen.blit(complexity_text, (MAP_WIDTH * TILE_SIZE + 20, 455))
+            screen.blit(complexity_text, (MAP_WIDTH * TILE_SIZE + 20, 475))
+            legend_text = info_font.render('V=vertices, E=edges', True, (120, 120, 120))
+            screen.blit(legend_text, (MAP_WIDTH * TILE_SIZE + 20, 495))
             
             if algo_nodes_visited > 0:
                 visited_text = info_font.render(f'Nodes visited: {algo_nodes_visited}', True, (80, 80, 80))
-                screen.blit(visited_text, (MAP_WIDTH * TILE_SIZE + 20, 475))
-                time_text = info_font.render(f'Time: {algo_execution_time:.1f} ms', True, (80, 80, 80))
-                screen.blit(time_text, (MAP_WIDTH * TILE_SIZE + 20, 495))
+                screen.blit(visited_text, (MAP_WIDTH * TILE_SIZE + 20, 515))
+                time_text = info_font.render(f'Time: {algo_execution_time:.3f} ms', True, (80, 80, 80))
+                screen.blit(time_text, (MAP_WIDTH * TILE_SIZE + 20, 535))
         end_turn_button.draw(screen)
 
         # check if the hero has reached the enemy
