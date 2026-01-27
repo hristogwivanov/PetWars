@@ -315,3 +315,132 @@ def astar_visual(start, goal, terrain_map):
         'path': None,
         'done': True
     }
+
+
+def bellman_ford_path(start, goal, terrain_map):
+    """
+    Find shortest path using Bellman-Ford algorithm (instant version).
+    Bellman-Ford relaxes all edges V-1 times.
+    """
+    # Build list of all edges from walkable tiles
+    edges = []
+    vertices = set()
+    for y in range(MAP_HEIGHT):
+        for x in range(MAP_WIDTH):
+            if terrain_map[y][x] == 1:
+                vertices.add((x, y))
+                for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT and terrain_map[ny][nx] == 1:
+                        edges.append(((x, y), (nx, ny), 1))
+    
+    # Initialize distances
+    dist = {v: float('inf') for v in vertices}
+    dist[start] = 0
+    came_from = {}
+    
+    # Relax all edges V-1 times
+    for _ in range(len(vertices) - 1):
+        updated = False
+        for u, v, w in edges:
+            if dist[u] + w < dist[v]:
+                dist[v] = dist[u] + w
+                came_from[v] = u
+                updated = True
+        if not updated:
+            break
+    
+    # Reconstruct path
+    if dist[goal] == float('inf'):
+        return None
+    
+    path = []
+    node = goal
+    while node != start:
+        path.append(node)
+        node = came_from[node]
+    path.append(start)
+    return path[::-1]
+
+
+def bellman_ford_visual(start, goal, terrain_map):
+    """
+    Generator version of Bellman-Ford for step-by-step visualization.
+    
+    Bellman-Ford relaxes all edges V-1 times, which makes it slower
+    but able to handle negative edge weights.
+    
+    Yields dict with current state at each iteration:
+        - visited: Set of nodes that have been relaxed
+        - frontier: List of edges being considered in current iteration
+        - current: Currently processing edge (as node)
+        - path: Final path (only when done)
+        - done: Boolean indicating completion
+    """
+    # Build list of all edges from walkable tiles
+    edges = []
+    vertices = set()
+    for y in range(MAP_HEIGHT):
+        for x in range(MAP_WIDTH):
+            if terrain_map[y][x] == 1:
+                vertices.add((x, y))
+                for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT and terrain_map[ny][nx] == 1:
+                        edges.append(((x, y), (nx, ny), 1))
+    
+    # Initialize distances
+    dist = {v: float('inf') for v in vertices}
+    dist[start] = 0
+    came_from = {}
+    relaxed = set()
+    relaxed.add(start)
+    
+    # Relax all edges V-1 times
+    for iteration in range(len(vertices) - 1):
+        updated = False
+        for u, v, w in edges:
+            if dist[u] != float('inf') and dist[u] + w < dist[v]:
+                dist[v] = dist[u] + w
+                came_from[v] = u
+                relaxed.add(v)
+                updated = True
+                
+                # Yield state for visualization
+                yield {
+                    'visited': relaxed.copy(),
+                    'frontier': [e[1] for e in edges if dist[e[0]] != float('inf') and e[1] not in relaxed],
+                    'current': v,
+                    'path': None,
+                    'done': False
+                }
+        
+        if not updated:
+            break
+    
+    # Reconstruct path
+    if dist[goal] == float('inf'):
+        yield {
+            'visited': relaxed.copy(),
+            'frontier': [],
+            'current': None,
+            'path': None,
+            'done': True
+        }
+        return
+    
+    path = []
+    node = goal
+    while node != start:
+        path.append(node)
+        node = came_from[node]
+    path.append(start)
+    path = path[::-1]
+    
+    yield {
+        'visited': relaxed.copy(),
+        'frontier': [],
+        'current': None,
+        'path': path,
+        'done': True
+    }

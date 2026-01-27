@@ -6,7 +6,7 @@ from constants import *
 from gamedata import *
 from gamedata import Cat_Hero
 from interface import *
-from pathfinding import dijkstra_visual, dijkstra_path, astar_visual, astar_path
+from pathfinding import dijkstra_visual, dijkstra_path, astar_visual, astar_path, bellman_ford_visual, bellman_ford_path
 
 
 def main():
@@ -73,11 +73,11 @@ def main():
     demo_target_tile = None  # Store target tile for confirmation
     normal_target_tile = None  # Store target tile for confirmation
     
-    # Algorithm selection: 0 = Dijkstra, 1 = A*
+    # Algorithm selection: 0 = Dijkstra, 1 = A*, 2 = Bellman-Ford
     selected_algorithm = 0
-    algorithm_names = ['Dijkstra', 'A*']
-    algorithm_complexity = ['O((V+E) log V)', 'O((V+E) log V)']
-    algorithm_descriptions = ['Explores all directions', 'Heuristic-guided search']
+    algorithm_names = ['Dijkstra', 'A*', 'Bellman-Ford']
+    algorithm_complexity = ['O((V+E) log V)', 'O((V+E) log V)', 'O(V*E)']
+    algorithm_descriptions = ['Explores all directions', 'Heuristic-guided search', 'Relaxes all edges V-1 times']
     
     # Algorithm execution stats
     algo_start_time = 0
@@ -249,13 +249,17 @@ def main():
                                     algo_start_time = time.perf_counter()
                                     if selected_algorithm == 0:
                                         temp_path = dijkstra_path(start, goal, terrain_map)
-                                    else:
+                                    elif selected_algorithm == 1:
                                         temp_path = astar_path(start, goal, terrain_map)
+                                    else:
+                                        temp_path = bellman_ford_path(start, goal, terrain_map)
                                     algo_execution_time = (time.perf_counter() - algo_start_time) * 1000
                                     if selected_algorithm == 0:
                                         dijkstra_generator = dijkstra_visual(start, goal, terrain_map)
-                                    else:
+                                    elif selected_algorithm == 1:
                                         dijkstra_generator = astar_visual(start, goal, terrain_map)
+                                    else:
+                                        dijkstra_generator = bellman_ford_visual(start, goal, terrain_map)
                                     dijkstra_state = None
                                     dijkstra_last_step_time = pygame.time.get_ticks()
                                     demo_path_ready = False
