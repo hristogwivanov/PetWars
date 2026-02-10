@@ -1,19 +1,19 @@
 import heapq
 import math
-from constants import MAP_WIDTH, MAP_HEIGHT, terrain_map
+from constants import MAP_WIDTH, MAP_HEIGHT, terrain_map, event_map
 
 # Cost constants
-SQRT2 = 1.5  # Diagonal movement cost (simplified from ~1.414)
+SQRT2 = 3  # Diagonal movement cost (simplified from ~2.83)
 
 # Movement directions: (dx, dy, cost)
-# Orthogonal moves cost 1, diagonal moves cost 1.5
+# Orthogonal moves cost 2, diagonal moves cost 3
 DIRECTIONS = [
-    # Orthogonal (cost 1)
-    (0, -1, 1),   # up
-    (0, 1, 1),    # down
-    (-1, 0, 1),   # left
-    (1, 0, 1),    # right
-    # Diagonal (cost 1.5)
+    # Orthogonal (cost 2)
+    (0, -1, 2),   # up
+    (0, 1, 2),    # down
+    (-1, 0, 2),   # left
+    (1, 0, 2),    # right
+    # Diagonal (cost 3)
     (-1, -1, SQRT2),  # up-left
     (1, -1, SQRT2),   # up-right
     (-1, 1, SQRT2),   # down-left
@@ -24,7 +24,8 @@ DIRECTIONS = [
 def get_neighbors(x, y, terrain_map):
     """
     Get valid neighbors with movement costs.
-    Includes diagonal movement (corner-cutting allowed).
+    Includes diagonal movement. Diagonal moves are blocked if an
+    adjacent orthogonal tile has an enemy or neutral army (event_map >= 200).
     
     Returns list of (nx, ny, cost) tuples.
     """
@@ -38,6 +39,13 @@ def get_neighbors(x, y, terrain_map):
         # Check if walkable
         if terrain_map[ny][nx] != 1:
             continue
+        
+        # Block diagonal if adjacent orthogonal tile has an army
+        if abs(dx) == 1 and abs(dy) == 1:
+            adj1 = event_map[y][x + dx]  # horizontal neighbor
+            adj2 = event_map[y + dy][x]  # vertical neighbor
+            if adj1 >= 200 or adj2 >= 200:
+                continue
         
         neighbors.append((nx, ny, cost))
     

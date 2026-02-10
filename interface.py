@@ -2,14 +2,14 @@ import pygame
 
 
 class MovesCounter:
-    def __init__(self, starting_moves=5.0):
+    def __init__(self, starting_moves=10):
         self.moves = starting_moves
         self.max_moves = starting_moves
 
     def draw(self, screen, x, y):
         font = pygame.font.Font(None, 24)
         # Display moves with 1 decimal place
-        text = font.render(f'Moves: {self.moves:.1f}', True, (0, 0, 0))
+        text = font.render(f'Energy: {int(self.moves)}', True, (0, 0, 0))
         screen.blit(text, (x, y))
 
 

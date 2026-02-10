@@ -121,9 +121,21 @@ def main():
         surf_h = MAP_HEIGHT * TILE_SIZE
         path_surface = pygame.Surface((surf_w, surf_h), pygame.SRCALPHA)
         alpha_color = (color[0], color[1], color[2], 120)
-        # Draw circles along the smoothed path for a continuous rounded look
-        for pt in smooth_pts:
-            pygame.draw.circle(path_surface, alpha_color, (int(pt[0]), int(pt[1])), width // 2)
+        radius = width // 2
+        # Draw circles densely along the path for uniform thickness
+        for i in range(len(smooth_pts) - 1):
+            x0, y0 = smooth_pts[i]
+            x1, y1 = smooth_pts[i + 1]
+            dist = max(abs(x1 - x0), abs(y1 - y0))
+            steps = max(int(dist / (radius * 0.15)), 1)
+            for s in range(steps + 1):
+                t = s / steps
+                px = int(x0 + (x1 - x0) * t)
+                py = int(y0 + (y1 - y0) * t)
+                pygame.draw.circle(path_surface, alpha_color, (px, py), radius)
+        # Draw circles at endpoints
+        for pt in [smooth_pts[0], smooth_pts[-1]]:
+            pygame.draw.circle(path_surface, alpha_color, (int(pt[0]), int(pt[1])), radius)
         screen.blit(path_surface, (0, 0))
 
     def draw_dijkstra_visualization(state):
@@ -203,7 +215,7 @@ def main():
     ok_button = Button(MAP_WIDTH * TILE_SIZE / 2 - 40, (MAP_HEIGHT * TILE_SIZE) / 2 + 10, 80, 40, LIGHT_BLUE, 'OK')
     show_win_dialog = False
 
-    moves = MovesCounter(5.0)
+    moves = MovesCounter(10)
     end_turn_button = Button(MAP_WIDTH * TILE_SIZE + 60, MAP_HEIGHT * TILE_SIZE - 50, 80, 40, LIGHT_BLUE, 'End Turn')
     demo_button = Button(MAP_WIDTH * TILE_SIZE + 20, 340, 160, 30, LIGHT_BLUE, 'DEMO MODE: OFF')
     algo_button = Button(MAP_WIDTH * TILE_SIZE + 20, 420, 160, 30, LIGHT_BLUE, 'Algo: Dijkstra')

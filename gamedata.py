@@ -50,7 +50,7 @@ class Hero:
             # Calculate movement cost (1 for orthogonal, sqrt(2) for diagonal)
             dx = abs(next_pos[0] - self.x)
             dy = abs(next_pos[1] - self.y)
-            cost = SQRT2 if (dx == 1 and dy == 1) else 1
+            cost = SQRT2 if (dx == 1 and dy == 1) else 2
             
             # Only move if we have enough movement points
             if moves_counter.moves >= cost:
@@ -401,7 +401,7 @@ def draw_date(screen):
 def end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary, redraw_callback=None):
     date_update()
     resources.update_resources()
-    moves.moves = 5.0
+    moves.moves = 10
     player_hero.reset_target()
     enemy_turn(enemy_hero, moves, event_dictionary, redraw_callback)
 
@@ -420,4 +420,4 @@ def enemy_turn(enemy_hero, moves, event_dictionary, redraw_callback=None):
             if event_map[enemy_hero.y][enemy_hero.x] in event_dictionary:
                 if event_map[enemy_hero.y][enemy_hero.x] >= 20 and event_map[enemy_hero.y][enemy_hero.x] <= 100 or event_map[enemy_hero.y][enemy_hero.x] >= 200: 
                     event_map[enemy_hero.y][enemy_hero.x] = 0
-    moves.moves = 5.0
+    moves.moves = 10
