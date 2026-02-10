@@ -89,6 +89,43 @@ def main():
     warning_start_time = 0
     WARNING_DURATION_MS = 2000  # Show warning for 2 seconds
 
+    def chaikin_smooth(points, iterations=3):
+        """Apply Chaikin's corner-cutting algorithm to smooth a polyline."""
+        for _ in range(iterations):
+            if len(points) < 3:
+                return points
+            smoothed = [points[0]]
+            for i in range(len(points) - 1):
+                p0 = points[i]
+                p1 = points[i + 1]
+                q = (p0[0] * 0.75 + p1[0] * 0.25, p0[1] * 0.75 + p1[1] * 0.25)
+                r = (p0[0] * 0.25 + p1[0] * 0.75, p0[1] * 0.25 + p1[1] * 0.75)
+                smoothed.append(q)
+                smoothed.append(r)
+            smoothed.append(points[-1])
+            points = smoothed
+        return points
+
+    def draw_path_line(path, color):
+        """Draw path as semi-transparent smooth curved road through tile centers."""
+        if not path:
+            return
+        half = TILE_SIZE // 2
+        width = TILE_SIZE
+        # Convert tile coords to pixel centers
+        pixel_points = [(x * TILE_SIZE + half, y * TILE_SIZE + half) for x, y in path]
+        # Smooth the path with Chaikin's algorithm for arc-like curves
+        smooth_pts = chaikin_smooth(pixel_points, iterations=3)
+        # Use a large transparent surface to draw the whole path at once
+        surf_w = MAP_WIDTH * TILE_SIZE
+        surf_h = MAP_HEIGHT * TILE_SIZE
+        path_surface = pygame.Surface((surf_w, surf_h), pygame.SRCALPHA)
+        alpha_color = (color[0], color[1], color[2], 120)
+        # Draw circles along the smoothed path for a continuous rounded look
+        for pt in smooth_pts:
+            pygame.draw.circle(path_surface, alpha_color, (int(pt[0]), int(pt[1])), width // 2)
+        screen.blit(path_surface, (0, 0))
+
     def draw_dijkstra_visualization(state):
         """Draw the current state of Dijkstra visualization."""
         # Create semi-transparent surface for overlays
@@ -114,17 +151,13 @@ def main():
                 x, y = state['current']
                 screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
             
-            # Draw final path (blue)
+            # Draw final path (blue) as thick polyline
             if state.get('path'):
-                overlay.fill(COLOR_PATH)
-                for (x, y) in state['path']:
-                    screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
+                draw_path_line(state['path'], COLOR_PATH)
 
-        # Draw normal mode preview path
+        # Draw normal mode preview path as thick polyline
         if normal_preview_path:
-            overlay.fill(COLOR_PATH)
-            for (x, y) in normal_preview_path:
-                screen.blit(overlay, (x * TILE_SIZE, y * TILE_SIZE))
+            draw_path_line(normal_preview_path, COLOR_PATH)
 
     def draw_demo_mode_indicator():
         """Draw indicator showing demo mode status."""
@@ -170,7 +203,7 @@ def main():
     ok_button = Button(MAP_WIDTH * TILE_SIZE / 2 - 40, (MAP_HEIGHT * TILE_SIZE) / 2 + 10, 80, 40, LIGHT_BLUE, 'OK')
     show_win_dialog = False
 
-    moves = MovesCounter(3)
+    moves = MovesCounter(5.0)
     end_turn_button = Button(MAP_WIDTH * TILE_SIZE + 60, MAP_HEIGHT * TILE_SIZE - 50, 80, 40, LIGHT_BLUE, 'End Turn')
     demo_button = Button(MAP_WIDTH * TILE_SIZE + 20, 340, 160, 30, LIGHT_BLUE, 'DEMO MODE: OFF')
     algo_button = Button(MAP_WIDTH * TILE_SIZE + 20, 420, 160, 30, LIGHT_BLUE, 'Algo: Dijkstra')

@@ -1,5 +1,54 @@
 import heapq
+import math
 from constants import MAP_WIDTH, MAP_HEIGHT, terrain_map
+
+# Cost constants
+SQRT2 = 1.5  # Diagonal movement cost (simplified from ~1.414)
+
+# Movement directions: (dx, dy, cost)
+# Orthogonal moves cost 1, diagonal moves cost 1.5
+DIRECTIONS = [
+    # Orthogonal (cost 1)
+    (0, -1, 1),   # up
+    (0, 1, 1),    # down
+    (-1, 0, 1),   # left
+    (1, 0, 1),    # right
+    # Diagonal (cost 1.5)
+    (-1, -1, SQRT2),  # up-left
+    (1, -1, SQRT2),   # up-right
+    (-1, 1, SQRT2),   # down-left
+    (1, 1, SQRT2),    # down-right
+]
+
+
+def get_neighbors(x, y, terrain_map):
+    """
+    Get valid neighbors with movement costs.
+    Includes diagonal movement (corner-cutting allowed).
+    
+    Returns list of (nx, ny, cost) tuples.
+    """
+    neighbors = []
+    for dx, dy, cost in DIRECTIONS:
+        nx, ny = x + dx, y + dy
+        
+        # Check bounds
+        if not (0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT):
+            continue
+        # Check if walkable
+        if terrain_map[ny][nx] != 1:
+            continue
+        
+        neighbors.append((nx, ny, cost))
+    
+    return neighbors
+
+
+def octile_heuristic(a, b):
+    """Octile distance heuristic for A* with diagonal movement."""
+    dx = abs(a[0] - b[0])
+    dy = abs(a[1] - b[1])
+    return max(dx, dy) + (SQRT2 - 1) * min(dx, dy)
 
 
 def dijkstra_path(start, goal, terrain_map):
@@ -39,19 +88,10 @@ def dijkstra_path(start, goal, terrain_map):
             continue
         
         x, y = current
-        # Explore 4-directional neighbors (up, down, left, right)
-        for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-            nx, ny = x + dx, y + dy
-            
-            # Check bounds
-            if not (0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT):
-                continue
-            # Check if walkable
-            if terrain_map[ny][nx] != 1:
-                continue
-            
-            # Calculate new distance (all edges cost 1)
-            tentative_g = g_score[current] + 1
+        # Explore all neighbors (orthogonal + diagonal)
+        for nx, ny, cost in get_neighbors(x, y, terrain_map):
+            # Calculate new distance (1 for orthogonal, sqrt(2) for diagonal)
+            tentative_g = g_score[current] + cost
             
             # Update if this path is better
             if tentative_g < g_score.get((nx, ny), float('inf')):
@@ -123,22 +163,14 @@ def dijkstra_visual(start, goal, terrain_map):
             return
         
         x, y = current
-        # Explore 4-directional neighbors
-        for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-            nx, ny = x + dx, y + dy
-            
-            # Check bounds
-            if not (0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT):
-                continue
-            # Check if walkable
-            if terrain_map[ny][nx] != 1:
-                continue
+        # Explore all neighbors (orthogonal + diagonal)
+        for nx, ny, cost in get_neighbors(x, y, terrain_map):
             # Skip if already visited
             if (nx, ny) in visited:
                 continue
             
-            # Calculate new distance
-            tentative_g = g_score[current] + 1
+            # Calculate new distance (1 for orthogonal, sqrt(2) for diagonal)
+            tentative_g = g_score[current] + cost
             
             # Update if this path is better
             if tentative_g < g_score.get((nx, ny), float('inf')):
@@ -166,8 +198,9 @@ def heuristic(a, b):
 def astar_path(start, goal, terrain_map):
     """
     Find shortest path using A* algorithm (instant version).
+    Uses octile heuristic for diagonal movement.
     """
-    open_set = [(heuristic(start, goal), start)]
+    open_set = [(octile_heuristic(start, goal), start)]
     open_set_lookup = {start}
     g_score = {start: 0}
     came_from = {}
@@ -192,22 +225,17 @@ def astar_path(start, goal, terrain_map):
             return path[::-1]
         
         x, y = current
-        for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-            nx, ny = x + dx, y + dy
-            
-            if not (0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT):
-                continue
-            if terrain_map[ny][nx] != 1:
-                continue
+        # Explore all neighbors (orthogonal + diagonal)
+        for nx, ny, cost in get_neighbors(x, y, terrain_map):
             if (nx, ny) in visited:
                 continue
             
-            tentative_g = g_score[current] + 1
+            tentative_g = g_score[current] + cost
             
             if tentative_g < g_score.get((nx, ny), float('inf')):
                 came_from[(nx, ny)] = current
                 g_score[(nx, ny)] = tentative_g
-                f_score = tentative_g + heuristic((nx, ny), goal)
+                f_score = tentative_g + octile_heuristic((nx, ny), goal)
                 if (nx, ny) not in open_set_lookup:
                     heapq.heappush(open_set, (f_score, (nx, ny)))
                     open_set_lookup.add((nx, ny))
@@ -231,7 +259,7 @@ def astar_visual(start, goal, terrain_map):
         - done: Boolean indicating completion
     """
     # Priority queue: (f_score, (x, y))
-    open_set = [(heuristic(start, goal), start)]
+    open_set = [(octile_heuristic(start, goal), start)]
     open_set_lookup = {start}
     # Track actual cost from start
     g_score = {start: 0}
@@ -280,29 +308,21 @@ def astar_visual(start, goal, terrain_map):
             return
         
         x, y = current
-        # Explore 4-directional neighbors
-        for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-            nx, ny = x + dx, y + dy
-            
-            # Check bounds
-            if not (0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT):
-                continue
-            # Check if walkable
-            if terrain_map[ny][nx] != 1:
-                continue
+        # Explore all neighbors (orthogonal + diagonal)
+        for nx, ny, cost in get_neighbors(x, y, terrain_map):
             # Skip if already visited
             if (nx, ny) in visited:
                 continue
             
-            # Calculate new g_score
-            tentative_g = g_score[current] + 1
+            # Calculate new g_score (1 for orthogonal, sqrt(2) for diagonal)
+            tentative_g = g_score[current] + cost
             
             # Update if this path is better
             if tentative_g < g_score.get((nx, ny), float('inf')):
                 came_from[(nx, ny)] = current
                 g_score[(nx, ny)] = tentative_g
-                # f_score = g_score + heuristic
-                f_score = tentative_g + heuristic((nx, ny), goal)
+                # f_score = g_score + heuristic (octile for diagonal movement)
+                f_score = tentative_g + octile_heuristic((nx, ny), goal)
                 if (nx, ny) not in open_set_lookup:
                     heapq.heappush(open_set, (f_score, (nx, ny)))
                     open_set_lookup.add((nx, ny))
@@ -321,18 +341,17 @@ def bellman_ford_path(start, goal, terrain_map):
     """
     Find shortest path using Bellman-Ford algorithm (instant version).
     Bellman-Ford relaxes all edges V-1 times.
+    Supports diagonal movement with sqrt(2) cost.
     """
-    # Build list of all edges from walkable tiles
+    # Build list of all edges from walkable tiles (including diagonals)
     edges = []
     vertices = set()
     for y in range(MAP_HEIGHT):
         for x in range(MAP_WIDTH):
             if terrain_map[y][x] == 1:
                 vertices.add((x, y))
-                for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-                    nx, ny = x + dx, y + dy
-                    if 0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT and terrain_map[ny][nx] == 1:
-                        edges.append(((x, y), (nx, ny), 1))
+                for nx, ny, cost in get_neighbors(x, y, terrain_map):
+                    edges.append(((x, y), (nx, ny), cost))
     
     # Initialize distances
     dist = {v: float('inf') for v in vertices}
@@ -369,6 +388,7 @@ def bellman_ford_visual(start, goal, terrain_map):
     
     Bellman-Ford relaxes all edges V-1 times, which makes it slower
     but able to handle negative edge weights.
+    Supports diagonal movement with sqrt(2) cost.
     
     Yields dict with current state at each iteration:
         - visited: Set of nodes that have been relaxed
@@ -377,17 +397,15 @@ def bellman_ford_visual(start, goal, terrain_map):
         - path: Final path (only when done)
         - done: Boolean indicating completion
     """
-    # Build list of all edges from walkable tiles
+    # Build list of all edges from walkable tiles (including diagonals)
     edges = []
     vertices = set()
     for y in range(MAP_HEIGHT):
         for x in range(MAP_WIDTH):
             if terrain_map[y][x] == 1:
                 vertices.add((x, y))
-                for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-                    nx, ny = x + dx, y + dy
-                    if 0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT and terrain_map[ny][nx] == 1:
-                        edges.append(((x, y), (nx, ny), 1))
+                for nx, ny, cost in get_neighbors(x, y, terrain_map):
+                    edges.append(((x, y), (nx, ny), cost))
     
     # Initialize distances
     dist = {v: float('inf') for v in vertices}

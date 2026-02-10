@@ -1,8 +1,9 @@
 import pygame
 import os
+import math
 from constants import *
 import random
-from pathfinding import dijkstra_path
+from pathfinding import dijkstra_path, SQRT2
 
 
 class Hero:
@@ -45,10 +46,17 @@ class Hero:
             return
         
         if self.path:
-            # Take next step in path
-            next_pos = self.path.pop(0)
-            self.x, self.y = next_pos
-            moves_counter.moves -= 1
+            next_pos = self.path[0]
+            # Calculate movement cost (1 for orthogonal, sqrt(2) for diagonal)
+            dx = abs(next_pos[0] - self.x)
+            dy = abs(next_pos[1] - self.y)
+            cost = SQRT2 if (dx == 1 and dy == 1) else 1
+            
+            # Only move if we have enough movement points
+            if moves_counter.moves >= cost:
+                self.path.pop(0)
+                self.x, self.y = next_pos
+                moves_counter.moves -= cost
     
     def reset_target(self):
         self.target_x = self.x
@@ -393,7 +401,7 @@ def draw_date(screen):
 def end_of_turn(resources, moves, player_hero, enemy_hero, event_dictionary, redraw_callback=None):
     date_update()
     resources.update_resources()
-    moves.moves = 3
+    moves.moves = 5.0
     player_hero.reset_target()
     enemy_turn(enemy_hero, moves, event_dictionary, redraw_callback)
 
@@ -412,4 +420,4 @@ def enemy_turn(enemy_hero, moves, event_dictionary, redraw_callback=None):
             if event_map[enemy_hero.y][enemy_hero.x] in event_dictionary:
                 if event_map[enemy_hero.y][enemy_hero.x] >= 20 and event_map[enemy_hero.y][enemy_hero.x] <= 100 or event_map[enemy_hero.y][enemy_hero.x] >= 200: 
                     event_map[enemy_hero.y][enemy_hero.x] = 0
-    moves.moves = 3
+    moves.moves = 5.0
