@@ -47,7 +47,7 @@ class Hero:
         
         if self.path:
             next_pos = self.path[0]
-            # Calculate movement cost (1 for orthogonal, sqrt(2) for diagonal)
+            # Calculate movement cost (2 for orthogonal, 3 for diagonal)
             dx = abs(next_pos[0] - self.x)
             dy = abs(next_pos[1] - self.y)
             cost = SQRT2 if (dx == 1 and dy == 1) else 2

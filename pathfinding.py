@@ -56,7 +56,9 @@ def octile_heuristic(a, b):
     """Octile distance heuristic for A* with diagonal movement."""
     dx = abs(a[0] - b[0])
     dy = abs(a[1] - b[1])
-    return max(dx, dy) + (SQRT2 - 1) * min(dx, dy)
+    D = 2      # orthogonal cost
+    D2 = SQRT2 # diagonal cost
+    return D * max(dx, dy) + (D2 - D) * min(dx, dy)
 
 
 def dijkstra_path(start, goal, terrain_map):
@@ -98,7 +100,7 @@ def dijkstra_path(start, goal, terrain_map):
         x, y = current
         # Explore all neighbors (orthogonal + diagonal)
         for nx, ny, cost in get_neighbors(x, y, terrain_map):
-            # Calculate new distance (1 for orthogonal, sqrt(2) for diagonal)
+            # Calculate new distance (2 for orthogonal, 3 for diagonal)
             tentative_g = g_score[current] + cost
             
             # Update if this path is better
@@ -177,7 +179,7 @@ def dijkstra_visual(start, goal, terrain_map):
             if (nx, ny) in visited:
                 continue
             
-            # Calculate new distance (1 for orthogonal, sqrt(2) for diagonal)
+            # Calculate new distance (2 for orthogonal, 3 for diagonal)
             tentative_g = g_score[current] + cost
             
             # Update if this path is better
@@ -322,7 +324,7 @@ def astar_visual(start, goal, terrain_map):
             if (nx, ny) in visited:
                 continue
             
-            # Calculate new g_score (1 for orthogonal, sqrt(2) for diagonal)
+            # Calculate new g_score (2 for orthogonal, 3 for diagonal)
             tentative_g = g_score[current] + cost
             
             # Update if this path is better
@@ -349,7 +351,7 @@ def bellman_ford_path(start, goal, terrain_map):
     """
     Find shortest path using Bellman-Ford algorithm (instant version).
     Bellman-Ford relaxes all edges V-1 times.
-    Supports diagonal movement with sqrt(2) cost.
+    Supports diagonal movement (orthogonal cost 2, diagonal cost 3).
     """
     # Build list of all edges from walkable tiles (including diagonals)
     edges = []
@@ -396,7 +398,7 @@ def bellman_ford_visual(start, goal, terrain_map):
     
     Bellman-Ford relaxes all edges V-1 times, which makes it slower
     but able to handle negative edge weights.
-    Supports diagonal movement with sqrt(2) cost.
+    Supports diagonal movement (orthogonal cost 2, diagonal cost 3).
     
     Yields dict with current state at each iteration:
         - visited: Set of nodes that have been relaxed
