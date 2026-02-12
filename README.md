@@ -124,11 +124,11 @@ Three test scenarios were conducted (short, medium, long path) to compare the al
 | A* | 0.076 | 6 | 0.142 | 16 | 0.174 | 22 |
 | Bellman-Ford | 0.696 | 59 | 0.652 | 59 | 0.760 | 59 |
 
-![Execution Time Comparison](Documentation/Algorithm%20line%20chart.png)
-*Execution time vs path length*
-
 ![Algorithm Comparison](Documentation/Algorithm%20comparison.png)
 *Side-by-side comparison of time and visited nodes*
+
+![Execution Time Comparison](Documentation/Algorithm%20line%20chart.png)
+*Execution time vs path length*
 
 **Key findings:**
 - **A*** is the fastest across all distances, scaling best due to the Octile heuristic
