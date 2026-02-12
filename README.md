@@ -28,7 +28,7 @@ PetWars is a Heroes of Might and Magic-inspired strategy game featuring two riva
 ![Starting Screen](Documentation/Screenshots/Starting%20screen.png)
 *Starting screen with the game map*
 
-![Pathfinding Visualization](Documentation/Screenshots/Pathfinding.png)
+![Pathfinding Visualization](Documentation/Screenshots/Long path test.png)
 *Demo mode showing pathfinding algorithm visualization*
 
 ## Installation
